@@ -23,21 +23,42 @@ class BaseSystem:
 # ================================================================
 class SpringSystem(BaseSystem):
     def __init__(self):
-        super().__init__()
         self.springs = []
         self.cen_pts = []
         self.pts_dict = {}
         self.steers = []
 
     # ##########INPUT: mesh; OUTPUT: dictionary, key as central point, value as all surrounding points########## #
-    def prepare_mesh(self, imesh):
-        pass
+    def prepare_mesh(self, imesh, size):
+        imesh.Faces.ConvertQuadsToTriangles()
+
+        # get vertices
+        vertices = imesh.Vertices.ToPoint3dArray()
+        points = []
+        for i in range(len(vertices)):
+            point = rg.Point3d(vertices[i].X, vertices[i].Y, vertices[i].Z)
+            points.append(point)
+
+        # calculate the surrounding points
+        self.pts_dict = {}
+        for i in points:
+            distances = []
+            for j in points:
+                if i != j:
+                    distance = j.DistanceTo(i)
+                    distances.append((j, distance))
+            distances.sort(key=lambda x: x[1])
+            closest_points = []
+
+            for d in distances[:size]:
+                closest_points.append(d[0])
+            self.pts_dict[i] = closest_points
 
     # ##########INPUT: Dictionary; OUTPUT: springs list########## #
     def convert_spring(self, force_list):
-        cen_pts = self.pts_dict.keys()
-        for i in range(len(cen_pts)):
-            spring = Spring(cen_pts[i], self.pts_dict[cen_pts[i]], force_list[i])
+        self.cen_pts = self.pts_dict.keys()
+        for i in range(len(self.cen_pts)):
+            spring = Spring(self.cen_pts[i], self.pts_dict[self.cen_pts[i]], force_list[i])
             self.springs.append(spring)
 
     # ##########Add force to each spring########## #
@@ -53,8 +74,11 @@ class SpringSystem(BaseSystem):
 
     # ##########Return mesh based on all the central points########## #
     def show(self):
-        o_mesh = rg.Mesh()
-        return o_mesh
+        o_pts = []
+        for spring in self.springs:
+            cen_pt = spring.show()
+            o_pts.append(cen_pt)
+        return o_pts
 
 
 # ================================================================
@@ -66,6 +90,10 @@ class Spring:
         self.cen_pt = cen_pt
         self.clo_pts = clo_pts
         self.start_velocity = inflate_vector
+        self.o_lens = []
+
+        for i in range(len(self.clo_pts)):
+            self.o_lens.append(self.cen_pt.DistanceTo(self.clo_pts[i]))
 
     # ##########Add all the force to cen_pts########## #
     def add_force(self):
@@ -98,13 +126,16 @@ class Spring:
     def update(self, steer):
         self.cen_pt += self.start_velocity
 
+    # ##########Show the cen_pts########## #
+    def show(self):
+        return self.cen_pt
+
 
 # ================================================================
 # Rope System   -------------------------------    TO BE CONTINUE
 # ================================================================
 class RopeSystem(BaseSystem):
     def __init__(self):
-        super().__init__()
         self.ropes = []
 
     def update(self):
@@ -130,11 +161,11 @@ imesh = rg.Mesh()
 force_list = []
 iReset = True
 
-if iReset == True:
+if iReset:
     my_spring_system = SpringSystem()
-    my_spring_system = my_spring_system.prepare_mesh(imesh)
-    my_spring_system = my_spring_system.convert_spring(force_list)
-    my_spring_system = my_spring_system.add_force()
+    my_spring_system.prepare_mesh(imesh)
+    my_spring_system.convert_spring(force_list)
+    my_spring_system.add_force()
 else:
-    my_spring_system = my_spring_system.update()
+    my_spring_system.update()
     oGeo = my_spring_system.show()
