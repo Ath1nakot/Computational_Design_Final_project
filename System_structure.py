@@ -29,30 +29,25 @@ class SpringSystem(BaseSystem):
         self.steers = []
 
     # ##########INPUT: mesh; OUTPUT: dictionary, key as central point, value as all surrounding points########## #
-    def prepare_mesh(self, imesh, size):
-        imesh.Faces.ConvertQuadsToTriangles()
+    def prepare_mesh(self, mesh):
+        # get topology vertex indices from GetMeshVertices method
+        ivertex = mesh.TopologyVertices
 
-        # get vertices
-        vertices = imesh.Vertices.ToPoint3dArray()
-        points = []
-        for i in range(len(vertices)):
-            point = rg.Point3d(vertices[i].X, vertices[i].Y, vertices[i].Z)
-            points.append(point)
+        d = {}  # empty dictionary for vertex indices
+        dpoints = {}  # empty dictionary for related points
 
-        # calculate the surrounding points
-        self.pts_dict = {}
-        for i in points:
-            distances = []
-            for j in points:
-                if i != j:
-                    distance = j.DistanceTo(i)
-                    distances.append((j, distance))
-            distances.sort(key=lambda x: x[1])
-            closest_points = []
+        for i in range(ivertex.Count):
+            connected_vertices_idx = ivertex.ConnectedTopologyVertices(i)
+            connected_vertices = []
+            for idx in range(len(connected_vertices_idx)):
+                clo_pt = rg.Point3d(mesh.Vertices[connected_vertices_idx[idx]])
+                connected_vertices.append(clo_pt)
 
-            for d in distances[:size]:
-                closest_points.append(d[0])
-            self.pts_dict[i] = closest_points
+                cen_pt = rg.Point3d(mesh.Vertices[i])
+                d[cen_pt] = connected_vertices
+                dpoints[i] = connected_vertices_idx
+        print(cen_pt)
+        self.pts_dict = d
 
     # ##########INPUT: Dictionary; OUTPUT: springs list########## #
     def convert_spring(self, force_list):
@@ -74,11 +69,12 @@ class SpringSystem(BaseSystem):
 
     # ##########Return mesh based on all the central points########## #
     def show(self):
-        o_pts = []
+        o_mesh = rg.Mesh()
         for spring in self.springs:
             cen_pt = spring.show()
-            o_pts.append(cen_pt)
-        return o_pts
+            o_mesh.Vertices.Add(cen_pt)
+
+        return o_mesh
 
 
 # ================================================================
@@ -89,7 +85,7 @@ class Spring:
     def __init__(self, cen_pt, clo_pts, inflate_vector):
         self.cen_pt = cen_pt
         self.clo_pts = clo_pts
-        self.start_velocity = inflate_vector
+        self.start_velocity = inflate_vector * 0.75
         self.o_lens = []
 
         for i in range(len(self.clo_pts)):
@@ -115,10 +111,9 @@ class Spring:
         # Calculate rope force
         rope_force = rg.Vector3d(0,0,0)
 
-        #o_X = sprint_force.X + rope_force.X + self.start_velocity.X
-        #o_Y = sprint_force.X + rope_force.Y + self.start_velocity.Y
-        #o_Z = sprint_force.X + rope_force.Z + self.start_velocity.Z
-        #steer = rg.Vector3d(o_X, o_Y, o_Z)
+        # Calculate start velocity
+        self.start_velocity *= 0.95
+
         steer = sprint_force + rope_force + self.start_velocity
         return steer
 
