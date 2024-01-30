@@ -1,12 +1,8 @@
 import rhino3dm as rg
 
-class SpringSystem:
+class BaseSystem:
     def __init__(self):
-        self.springs = []
-
-    def update(self):
-        for spring in self.springs:
-            spring.update()
+        pass
 
     def find_neighbors(self, agent, system, distance):
         neighbors = []
@@ -17,7 +13,18 @@ class SpringSystem:
         return neighbors
 
 
-class RopeSystem:
+class SpringSystem(BaseSystem):
+    def __init__(self,spring_system):
+        self.springs = []
+        for spring in spring_system:
+            spring =
+
+    def update(self):
+        for spring in self.springs:
+            spring.update()
+
+
+class RopeSystem(BaseSystem):
     def __init__(self):
         self.ropes = []
 
